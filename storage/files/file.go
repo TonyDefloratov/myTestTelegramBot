@@ -1,7 +1,7 @@
 package files
 
 import (
-	"TgBot/lib/Errors"
+	"TgBot/lib/e"
 	"TgBot/storage"
 	"encoding/gob"
 	"errors"
@@ -18,30 +18,35 @@ type Storage struct {
 
 const defaultPerm = 0774
 
-var ErrNoSavedPages = errors.New("no saved fil")
+var ErrNoSavedPages = errors.New("no saved page")
 
 func New(basePath string) Storage {
-	return Storage{basePath: basePath}
+	return Storage{
+		basePath: basePath,
+	}
 }
+
 func (s Storage) Save(page *storage.Page) (err error) {
-	defer func() { err = Errors.WrapIfErr("can't save page", err) }()
+	defer func() { err = e.WrapIfErr("can't save page", err) }()
 
-	filePath := filepath.Join(s.basePath, page.UserName)
+	fPath := filepath.Join(s.basePath, page.UserName)
 
-	if err := os.MkdirAll(filePath, defaultPerm); err != nil {
+	if err := os.MkdirAll(fPath, defaultPerm); err != nil {
 		return err
 	}
-
 	fName, err := fileName(page)
 	if err != nil {
 		return err
 	}
-	filePath = filepath.Join(filePath, fName)
-	file, err := os.Create(filePath)
+
+	fPath = filepath.Join(fPath, fName)
+
+	file, err := os.Create(fPath)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = file.Close() }()
+
+	defer func() { file.Close() }()
 
 	if err := gob.NewEncoder(file).Encode(page); err != nil {
 		return err
@@ -50,17 +55,19 @@ func (s Storage) Save(page *storage.Page) (err error) {
 }
 
 func (s Storage) PickRandom(userName string) (page *storage.Page, err error) {
-	defer func() { err = Errors.WrapIfErr("can't pick random page", err) }()
+	defer func() { err = e.WrapIfErr("can't pick random", err) }()
 
-	path := filepath.Join(s.basePath, userName)
+	path := filepath.Join(s.basePath, page.UserName)
 
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
+
 	if len(files) == 0 {
 		return nil, ErrNoSavedPages
 	}
+
 	rand.Seed(time.Now().UnixNano())
 	n := rand.Intn(len(files))
 
@@ -72,12 +79,14 @@ func (s Storage) PickRandom(userName string) (page *storage.Page, err error) {
 func (s Storage) Remove(p *storage.Page) error {
 	fileName, err := fileName(p)
 	if err != nil {
-		return Errors.Wrap("can't remove file", err)
+		return e.Wrap("can't remove file", err)
 	}
+
 	path := filepath.Join(s.basePath, p.UserName, fileName)
 
 	if err := os.Remove(path); err != nil {
-		return Errors.Wrap(fmt.Sprintf("can't remove file %s", path), err)
+		msg := fmt.Sprintf("can't remove file %s", path)
+		return e.Wrap(msg, err)
 	}
 	return nil
 }
@@ -85,16 +94,18 @@ func (s Storage) Remove(p *storage.Page) error {
 func (s Storage) IsExists(p *storage.Page) (bool, error) {
 	fileName, err := fileName(p)
 	if err != nil {
-		return false, Errors.Wrap("can't remove file", err)
+		return false, e.Wrap("can't check if file exists", err)
 	}
+
 	path := filepath.Join(s.basePath, p.UserName, fileName)
 
 	switch _, err = os.Stat(path); {
 	case errors.Is(err, os.ErrNotExist):
 		return false, nil
 	case err != nil:
-		msg := fmt.Sprintf("can't remove file %s", path)
-		return false, Errors.Wrap(msg, err)
+		msg := fmt.Sprintf("can't check if file %s exists", path)
+
+		return false, e.Wrap(msg, err)
 	}
 	return true, nil
 }
@@ -102,14 +113,16 @@ func (s Storage) IsExists(p *storage.Page) (bool, error) {
 func (s Storage) decodePage(filePath string) (*storage.Page, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
-		return nil, Errors.Wrap("can't decode page", err)
+		return nil, e.Wrap("can't decode page", err)
 	}
 	defer func() { _ = f.Close() }()
 
 	var p storage.Page
+
 	if err := gob.NewDecoder(f).Decode(&p); err != nil {
-		return nil, Errors.Wrap("can't decode page", err)
+		return nil, e.Wrap("can't decode page", err)
 	}
+
 	return &p, nil
 }
 
