@@ -4,7 +4,7 @@ import (
 	eventConsumer "TgBot/clients/consumer/event-consumer"
 	tgClient "TgBot/clients/telegram"
 	"TgBot/events/telegram"
-	"TgBot/storage/sqllite"
+	"TgBot/storage/sqlite"
 	"context"
 	"flag"
 	"log"
@@ -18,7 +18,7 @@ const (
 
 func main() {
 	//s := files.New(storagePath)
-	s, err := sqllite.New(sqliteStoragePath)
+	s, err := sqlite.New(sqliteStoragePath)
 	if err != nil {
 		log.Fatal("can't connect to storage:", err)
 	}
