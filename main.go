@@ -4,21 +4,32 @@ import (
 	eventConsumer "TgBot/clients/consumer/event-consumer"
 	tgClient "TgBot/clients/telegram"
 	"TgBot/events/telegram"
-	"TgBot/storage/files"
+	"TgBot/storage/sqllite"
+	"context"
 	"flag"
 	"log"
 )
 
 const (
-	tgBotHost   = "api.telegram.org"
-	storagePath = "storage"
-	batchSize   = 100
+	tgBotHost         = "api.telegram.org"
+	sqliteStoragePath = "data/sqlite/storage.db"
+	batchSize         = 100
 )
 
 func main() {
+	//s := files.New(storagePath)
+	s, err := sqllite.New(sqliteStoragePath)
+	if err != nil {
+		log.Fatal("can't connect to storage:", err)
+	}
+
+	if err := s.Init(context.TODO()); err != nil {
+		log.Fatal("can't init storage:", err)
+	}
+
 	eventsProcessor := telegram.New(
 		tgClient.New(tgBotHost, mustToken()),
-		files.New(storagePath),
+		s,
 	)
 
 	log.Print("Service started!")
@@ -30,7 +41,7 @@ func main() {
 
 }
 func mustToken() string {
-	token := flag.String("token-bot-token",
+	token := flag.String("tg-bot-token",
 		"",
 		"toke for access to telegram bot",
 	)
